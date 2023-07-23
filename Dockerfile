@@ -19,6 +19,7 @@ ENV DBNAME=WeddingDB
 ENV DBPASS=daniel7ayde
 ENV DBUSER=danielAdmin
 ENV LOCALPORT=:8080
+ENV GIN_MODE=release
 
 # Build the Go app
 RUN go build -o main .
