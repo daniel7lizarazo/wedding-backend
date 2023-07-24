@@ -57,6 +57,7 @@ func main() {
 	router := gin.Default()
 
 	router.GET("/invitados", getInvitados)
+	router.GET("/invitados/:id", getInvitadoById)
 
 	router.Run(os.Getenv("LOCALPORT"))
 
@@ -98,4 +99,20 @@ func getInvitadosDb() ([]InvitadoResp, error) {
 	}
 
 	return invitados, nil
+}
+
+func getInvitadoById(gc *gin.Context) {
+	id := gc.Param("id")
+
+	// An invitador slice to hold the data returned.
+	var invitado InvitadoResp
+
+	row := db.QueryRow("SELECT id, id_text, nombre, nombre_invitacion, asiste FROM Invitados WHERE id_text = ?", id)
+
+	if err := row.Scan(&invitado.Id, &invitado.Id_text, &invitado.Nombre, &invitado.Nombre_invitacion, &invitado.Asiste); err != nil {
+		gc.IndentedJSON(http.StatusNotFound, gin.H{"message": fmt.Sprintf("No se encontró uninvitado con el id %v", id)})
+	}
+
+	// return invitado, nil
+	gc.IndentedJSON(http.StatusOK, invitado)
 }
