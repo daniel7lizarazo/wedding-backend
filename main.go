@@ -32,11 +32,13 @@ type FamiliasResp struct {
 	Id_text           string
 	Nombre            string
 	Miembro_principal int64
+	Nombre_invitacion string
 }
 
 type FamiliasCommand struct {
 	Nombre            string
 	Miembro_principal int64
+	Nombre_invitacion string
 }
 
 func main() {
@@ -145,7 +147,7 @@ func getFamiliasDb() ([]FamiliasResp, error) {
 
 	var familias []FamiliasResp
 
-	famResp, err := db.Query("SELECT id, id_text, nombre, miembro_principal FROM Familias")
+	famResp, err := db.Query("SELECT id, id_text, nombre, miembro_principal, nombre_invitacion FROM Familias")
 
 	if err != nil {
 		return nil, fmt.Errorf("getFamiliasDb %s", err)
@@ -159,7 +161,8 @@ func getFamiliasDb() ([]FamiliasResp, error) {
 			&familia.Id,
 			&familia.Id_text,
 			&familia.Nombre,
-			&familia.Miembro_principal); err != nil {
+			&familia.Miembro_principal,
+			&familia.Nombre_invitacion); err != nil {
 			return nil, fmt.Errorf("getFamiliasDb %s", err)
 		}
 		familias = append(familias, familia)
@@ -174,9 +177,14 @@ func getFamiliaById(gc *gin.Context) {
 	// An invitador slice to hold the data returned.
 	var familia FamiliasResp
 
-	row := db.QueryRow("SELECT id, id_text, nombre, miembro_principal FROM Familias WHERE id_text = ?", id)
+	row := db.QueryRow("SELECT id, id_text, nombre, miembro_principal, nombre_invitacion FROM Familias WHERE id_text = ?", id)
 
-	if err := row.Scan(&familia.Id, &familia.Id_text, &familia.Nombre, &familia.Miembro_principal); err != nil {
+	if err := row.Scan(
+		&familia.Id,
+		&familia.Id_text,
+		&familia.Nombre,
+		&familia.Miembro_principal,
+		&familia.Nombre_invitacion); err != nil {
 		gc.IndentedJSON(http.StatusNotFound, gin.H{"message": fmt.Sprintf("No se encontró una familia con el id %v", id)})
 	}
 
