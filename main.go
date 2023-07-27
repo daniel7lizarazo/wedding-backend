@@ -27,6 +27,18 @@ type InvitadoCommand struct {
 	Asiste            *bool
 }
 
+type FamiliasResp struct {
+	Id                int64
+	Id_text           string
+	Nombre            string
+	Miembro_principal int64
+}
+
+type FamiliasCommand struct {
+	Nombre            string
+	Miembro_principal int64
+}
+
 func main() {
 	// Capture connection properties.
 	cfg := mysql.Config{
@@ -56,6 +68,8 @@ func main() {
 
 	router := gin.Default()
 
+	router.GET("/familias", getFamilias)
+	router.GET("/familias/:id", getFamiliaById)
 	router.GET("/invitados", getInvitados)
 	router.GET("/invitados/:id", getInvitadoById)
 
@@ -80,7 +94,7 @@ func getInvitadosDb() ([]InvitadoResp, error) {
 	invResp, err := db.Query("SELECT id, id_text, nombre, nombre_invitacion, asiste FROM Invitados")
 
 	if err != nil {
-		return nil, fmt.Errorf("getInvitados %s", err)
+		return nil, fmt.Errorf("getInvitadosDb %s", err)
 	}
 
 	defer invResp.Close()
@@ -93,7 +107,7 @@ func getInvitadosDb() ([]InvitadoResp, error) {
 			&invitado.Nombre,
 			&invitado.Nombre_invitacion,
 			&invitado.Asiste); err != nil {
-			return nil, fmt.Errorf("getInvitados %s", err)
+			return nil, fmt.Errorf("getInvitadosDb %s", err)
 		}
 		invitados = append(invitados, invitado)
 	}
@@ -110,9 +124,62 @@ func getInvitadoById(gc *gin.Context) {
 	row := db.QueryRow("SELECT id, id_text, nombre, nombre_invitacion, asiste FROM Invitados WHERE id_text = ?", id)
 
 	if err := row.Scan(&invitado.Id, &invitado.Id_text, &invitado.Nombre, &invitado.Nombre_invitacion, &invitado.Asiste); err != nil {
-		gc.IndentedJSON(http.StatusNotFound, gin.H{"message": fmt.Sprintf("No se encontró uninvitado con el id %v", id)})
+		gc.IndentedJSON(http.StatusNotFound, gin.H{"message": fmt.Sprintf("No se encontró un invitado con el id %v", id)})
 	}
 
 	// return invitado, nil
 	gc.IndentedJSON(http.StatusOK, invitado)
+}
+
+func getFamilias(gc *gin.Context) {
+	familias, err := getFamiliasDb()
+
+	if err != nil {
+		gc.IndentedJSON(http.StatusNotFound, gin.H{"message": "No se encontraron familias"})
+	}
+
+	gc.IndentedJSON(http.StatusOK, familias)
+}
+
+func getFamiliasDb() ([]FamiliasResp, error) {
+
+	var familias []FamiliasResp
+
+	famResp, err := db.Query("SELECT id, id_text, nombre, miembro_principal FROM Familias")
+
+	if err != nil {
+		return nil, fmt.Errorf("getFamiliasDb %s", err)
+	}
+
+	defer famResp.Close()
+
+	for famResp.Next() {
+		var familia FamiliasResp
+		if err := famResp.Scan(
+			&familia.Id,
+			&familia.Id_text,
+			&familia.Nombre,
+			&familia.Miembro_principal); err != nil {
+			return nil, fmt.Errorf("getFamiliasDb %s", err)
+		}
+		familias = append(familias, familia)
+	}
+
+	return familias, nil
+}
+
+func getFamiliaById(gc *gin.Context) {
+	id := gc.Param("id")
+
+	// An invitador slice to hold the data returned.
+	var familia FamiliasResp
+
+	row := db.QueryRow("SELECT id, id_text, nombre, miembro_principal FROM Familias WHERE id_text = ?", id)
+
+	if err := row.Scan(&familia.Id, &familia.Id_text, &familia.Nombre, &familia.Miembro_principal); err != nil {
+		gc.IndentedJSON(http.StatusNotFound, gin.H{"message": fmt.Sprintf("No se encontró una familia con el id %v", id)})
+	}
+
+	// return invitado, nil
+	gc.IndentedJSON(http.StatusOK, familia)
 }
