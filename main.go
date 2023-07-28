@@ -74,6 +74,7 @@ func main() {
 	router.GET("/familias/:id", getFamiliaById)
 	router.GET("/invitados", getInvitados)
 	router.GET("/invitados/:id", getInvitadoById)
+	router.GET("/invitados/byfamilia/:id", getInvitadoByFamiliaId)
 
 	router.Run(os.Getenv("LOCALPORT"))
 
@@ -190,4 +191,44 @@ func getFamiliaById(gc *gin.Context) {
 
 	// return invitado, nil
 	gc.IndentedJSON(http.StatusOK, familia)
+}
+
+func getInvitadoByFamiliaId(gc *gin.Context) {
+	id := gc.Param("id")
+
+	invitados, err := getInvitadosByFailiaIdDB(id)
+
+	if err != nil {
+		gc.IndentedJSON(http.StatusNotFound, gin.H{"message": "No se encontraron invitados"})
+	}
+
+	gc.IndentedJSON(http.StatusOK, invitados)
+}
+
+func getInvitadosByFailiaIdDB(id string) ([]InvitadoResp, error) {
+
+	var invitados []InvitadoResp
+
+	invResp, err := db.Query("SELECT id, id_text, nombre, nombre_invitacion, asiste FROM Invitados WHERE id_familia = ?", id)
+
+	if err != nil {
+		return nil, fmt.Errorf("getInvitadosDb %s", err)
+	}
+
+	defer invResp.Close()
+
+	for invResp.Next() {
+		var invitado InvitadoResp
+		if err := invResp.Scan(
+			&invitado.Id,
+			&invitado.Id_text,
+			&invitado.Nombre,
+			&invitado.Nombre_invitacion,
+			&invitado.Asiste); err != nil {
+			return nil, fmt.Errorf("getInvitadosDb %s", err)
+		}
+		invitados = append(invitados, invitado)
+	}
+
+	return invitados, nil
 }
