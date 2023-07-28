@@ -175,7 +175,6 @@ func getFamiliasDb() ([]FamiliasResp, error) {
 func getFamiliaById(gc *gin.Context) {
 	id := gc.Param("id")
 
-	// An invitador slice to hold the data returned.
 	var familia FamiliasResp
 
 	row := db.QueryRow("SELECT id, id_text, nombre, miembro_principal, nombre_invitacion FROM Familias WHERE id_text = ?", id)
@@ -189,7 +188,6 @@ func getFamiliaById(gc *gin.Context) {
 		gc.IndentedJSON(http.StatusNotFound, gin.H{"message": fmt.Sprintf("No se encontró una familia con el id %v", id)})
 	}
 
-	// return invitado, nil
 	gc.IndentedJSON(http.StatusOK, familia)
 }
 
