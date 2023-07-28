@@ -209,7 +209,7 @@ func getInvitadosByFailiaIdDB(id string) ([]InvitadoResp, error) {
 
 	var invitados []InvitadoResp
 
-	invResp, err := db.Query("SELECT id, id_text, nombre, nombre_invitacion, asiste FROM Invitados WHERE id_familia = ?", id)
+	invResp, err := db.Query("SELECT i.id, i.id_text, i.nombre, i.nombre_invitacion, asiste FROM WeddingDB.Invitados i INNER JOIN WeddingDB.Familias f ON i.id_familia = f.id WHERE f.id_text = ?", id)
 
 	if err != nil {
 		return nil, fmt.Errorf("getInvitadosDb %s", err)
