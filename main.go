@@ -365,7 +365,7 @@ func rechazarInvitacion(gc *gin.Context) {
 	}
 
 	htmlStr := fmt.Sprintf(`<button type="button" id="rechazar" name="invitado_id" value="%s" class="rechazarSeleccionado"
-                    hx-get="/components/rechazar-button-%s" hx-trigger="click from:button#aceptar[value='%s']" hx-swap="outerHTML">
+                    hx-get="/components/rechazar-button-%s" hx-trigger="click from:button#aceptar[value='%s'] queue:last delay:.5s" hx-swap="outerHTML transition:true">
 						<span>Rechazado</span>
                     </button>`, invitado.Invitado_Id, invitado.Invitado_Id, invitado.Invitado_Id)
 
@@ -389,7 +389,7 @@ func aceptarInvitacion(gc *gin.Context) {
 	}
 
 	htmlStr := fmt.Sprintf(`<button type="button" id="aceptar" name="invitado_id" value="%s" class="aceptarSeleccionado" 
-				hx-get="/components/aceptar-button-%s" hx-trigger="click from:button#rechazar[value='%s']" hx-swap="outerHTML">
+				hx-get="/components/aceptar-button-%s" hx-trigger="click from:button#rechazar[value='%s'] queue:last delay:.5s" hx-swap="outerHTML transition:true">
 					<span>Aceptado</span>
 				</button>`, invitado.Invitado_Id, invitado.Invitado_Id, invitado.Invitado_Id)
 
