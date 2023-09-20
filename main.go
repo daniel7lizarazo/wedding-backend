@@ -95,9 +95,23 @@ func main() {
 
 	router.GET("/familias", getFamilias)
 	router.GET("/familias/:id", getFamiliaById)
+
+	router.OPTIONS("/familias/presentacion/:id", enableCors)
+	router.GET("/familias/presentacion/:id", getPresentacionFamiliaById)
+
 	router.GET("/invitados", getInvitados)
 	router.GET("/invitados/:id", getInvitadoById)
 	router.GET("/invitados/byfamilia/:id", getInvitadoByFamiliaId)
+
+	router.OPTIONS("/invitados/presentacion/:id", enableCors)
+	router.GET("/invitados/presentacion/:id", getPresentacionInvitadoById)
+
+	router.OPTIONS("/verificarInvitado/:id", enableCors)
+	router.GET("/verificarInvitado/:id", verificarInvitado)
+
+	router.OPTIONS("/verificarFamilia/:id", enableCors)
+	router.GET("/verificarFamilia/:id", verificarFamilia)
+
 	router.POST("/asistencia/rechazar", rechazarInvitacion)
 	router.OPTIONS("/asistencia/rechazar", enableCors)
 	router.POST("/asistencia/aceptar", aceptarInvitacion)
@@ -107,22 +121,13 @@ func main() {
 	router.POST("/mensaje", agregarMensaje)
 	router.OPTIONS("/mensaje", enableCors)
 
-	router.POST("/prueba1", prueba1)
-	router.OPTIONS("/prueba1", enableCors)
-
-	router.POST("/prueba2", prueba2)
-	router.OPTIONS("/prueba2", enableCors)
-
-	router.POST("/pruebaHXTrigger", pruebaHXTrigger)
-	router.OPTIONS("/pruebaHXTrigger", enableCors)
-
 	router.Run(os.Getenv("LOCALPORT"))
 
 }
 
 func enableCors(gc *gin.Context) {
 	gc.Header("Access-Control-Allow-Origin", "*")
-	gc.Header("Access-Control-Allow-Headers", "access-control-allow-origin, access-control-allow-headers, Content-Type, HX-Trigger")
+	gc.Header("Access-Control-Allow-Headers", "access-control-allow-origin, access-control-allow-headers, Content-Type, hx-current-url, hx-request")
 	gc.Header("Content-Type", "application/json")
 	gc.Status(http.StatusNoContent)
 }
@@ -350,28 +355,198 @@ func updateMultiplesInvitadosAsistencia(gc *gin.Context) {
 
 }
 
-func rechazarInvitacion(gc *gin.Context) {
+func crearBotonAceptado(invitadoId string) string {
+	return fmt.Sprintf(`
+
+	<button type="button" id="aceptar%s" name="invitado_id" value="%s" class="aceptarSeleccionado">
+		<span>Aceptado</span>
+	</button>
+
+	`, invitadoId, invitadoId)
+}
+
+func crearBotonRechazado(invitadoId string) string {
+	return fmt.Sprintf(`
+	
+	<button type="button" id="rechazar%s" name="invitado_id" value="%s" class="rechazarSeleccionado">
+		<span>Rechazado</span>
+	</button>
+
+	`, invitadoId, invitadoId)
+}
+
+func crearBotonAceptar(invitadoId string) string {
+	return fmt.Sprintf(`
+
+	<button type="button" id="aceptar%s" name="invitado_id" value="%s" class="aceptar"
+		hx-post="https://wedding-back.fly.dev/asistencia/aceptar" 
+		hx-select="#aceptar%s" 
+		hx-swap="outerHTML" 
+		hx-select-oob="#rechazar%s" 
+		hx-indicator="#svg-load%s, #aceptar-svg%s"
+		hx-ext="json-enc">
+
+			<svg id="aceptar-svg%s" class="aceptar-svg response-svg" version="1.1" viewBox="0 0 167.13 173.09" xmlns="http://www.w3.org/2000/svg">
+			<defs>
+			<clipPath id="21d8b0576d-0">
+			<path d="m550.25 1h473.75v492h-473.75z"/>
+			</clipPath>
+			</defs>
+			<metadata>
+			<rdf:RDF>
+			<cc:Work rdf:about="">
+				<dc:format>image/svg+xml</dc:format>
+				<dc:type rdf:resource="http://purl.org/dc/dcmitype/StillImage"/>
+				<dc:title/>
+			</cc:Work>
+			</rdf:RDF>
+			</metadata>
+			<g transform="translate(-143.57 -26.461)">
+			<g transform="matrix(.35278 0 0 .35278 -50.548 25.877)" clip-path="url(#21d8b0576d-0)">
+			<path d="m1006.1 1.6562-21.289 14.574c-111.31 76.172-225.3 233.87-282.17 362.08-8.7852-12.301-11.438-16.375-19.949-30.051-34.766-46.977-78.848-87.293-99.766-102.18l-32.684 13.664 1.0352 1.9414c22.566 24.711 62.164 79.543 121.84 200.37 3.6602 5.2188 7.5625 10.34 12.004 15.117 11.68 12.512 23.652 15.145 31.641 15.145h0.0117c22.781 0 36.215-17.992 45.465-39.055 59.77-221.92 201.01-374.69 262.09-427.02z" fill="#f9eae6"/>
+			</g>
+			</g>
+			</svg>
+
+			<svg class="loader-svg htmx-indicator" fill="#fff" version="1.1" id="svg-load%s" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" x="0px" y="0px"
+			viewBox="0 0 40 40" enable-background="new 0 0 0 0" xml:space="preserve">
+			<circle fill="#fff" stroke="none" cx="6" cy="20" r="6">
+				<animate
+				attributeName="opacity"
+				dur="1s"
+				values="0;1;0"
+				repeatCount="indefinite"
+				begin="0.1"/>    
+			</circle>
+			<circle fill="#fff" stroke="none" cx="26" cy="20" r="6">
+				<animate
+				attributeName="opacity"
+				dur="1s"
+				values="0;1;0"
+				repeatCount="indefinite" 
+				begin="0.2"/>       
+			</circle>
+			<circle fill="#fff" stroke="none" cx="46" cy="20" r="6">
+				<animate
+				attributeName="opacity"
+				dur="1s"
+				values="0;1;0"
+				repeatCount="indefinite" 
+				begin="0.3"/>     
+			</circle>
+			</svg>
+		</button>
+
+	`, invitadoId, invitadoId, invitadoId, invitadoId, invitadoId, invitadoId, invitadoId, invitadoId)
+}
+
+func crearBotonRechazar(invitadoId string) string {
+	return fmt.Sprintf(`
+	
+	<button type="button" id="rechazar%s" name="invitado_id" value="%s" class="rechazar"
+		hx-post="https://wedding-back.fly.dev/asistencia/rechazar" 
+		hx-select="#rechazar%s" 
+		hx-swap="outerHTML" 
+		hx-select-oob="#aceptar%s" 
+		hx-indicator="#svg-load%s, #rechazar-svg%s"
+		hx-ext="json-enc">
+			
+			<svg id="rechazar-svg%s" class="rechazar-svg response-svg" version="1.1" viewBox="0 0 181.44 181.43" xmlns="http://www.w3.org/2000/svg">
+			<defs>
+			<clipPath id="577a602fa9">
+			<path d="m3 4h516v514.39h-516z"/>
+			</clipPath>
+			</defs>
+			<metadata>
+			<rdf:RDF>
+			<cc:Work rdf:about="">
+				<dc:format>image/svg+xml</dc:format>
+				<dc:type rdf:resource="http://purl.org/dc/dcmitype/StillImage"/>
+				<dc:title/>
+			</cc:Work>
+			</rdf:RDF>
+			</metadata>
+			<g transform="translate(34.777 -51.84)">
+			<g transform="matrix(.35278 0 0 .35278 -36.182 50.389)" clip-path="url(#577a602fa9)">
+			<path d="m317.32 261.29 189.34-189.36c15.516-15.516 15.516-40.672 0-56.184-15.516-15.516-40.668-15.516-56.18 0l-189.34 189.36-189.34-189.36c-15.516-15.516-40.664-15.516-56.18 0-15.512 15.516-15.512 40.668 0 56.184l189.34 189.36-189.34 189.36c-15.512 15.516-15.512 40.668 0 56.18 7.7578 7.7578 17.922 11.637 28.09 11.637s20.332-3.8789 28.09-11.637l189.34-189.36 189.34 189.36c7.7578 7.7578 17.922 11.637 28.09 11.637s20.332-3.8789 28.09-11.637c15.516-15.516 15.516-40.668 0-56.18z" fill="#f9eae6"/>
+			</g>
+			</g>
+			</svg>
+
+			<svg class="loader-svg htmx-indicator" fill="#fff" version="1.1" id="svg-load%s" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" x="0px" y="0px"
+			viewBox="0 0 40 40" enable-background="new 0 0 0 0" xml:space="preserve">
+			<circle fill="#fff" stroke="none" cx="6" cy="20" r="6">
+				<animate
+				attributeName="opacity"
+				dur="1s"
+				values="0;1;0"
+				repeatCount="indefinite"
+				begin="0.1"/>    
+			</circle>
+			<circle fill="#fff" stroke="none" cx="26" cy="20" r="6">
+				<animate
+				attributeName="opacity"
+				dur="1s"
+				values="0;1;0"
+				repeatCount="indefinite" 
+				begin="0.2"/>       
+			</circle>
+			<circle fill="#fff" stroke="none" cx="46" cy="20" r="6">
+				<animate
+				attributeName="opacity"
+				dur="1s"
+				values="0;1;0"
+				repeatCount="indefinite" 
+				begin="0.3"/>     
+			</circle>
+			</svg>
+
+		</button>
+
+	`, invitadoId, invitadoId, invitadoId, invitadoId, invitadoId, invitadoId, invitadoId, invitadoId)
+}
+
+func crearFilaInvitado(invitado InvitadoResp) (fila string) {
+
+	nombreInvitado := fmt.Sprintf("<span> %s </span>", invitado.Nombre)
+	if !invitado.Asiste.Valid {
+		return "<li>" + nombreInvitado + crearBotonAceptar(invitado.Id_text) + crearBotonRechazar(invitado.Id_text) + "</li>"
+	}
+	if invitado.Asiste.Bool {
+		return "<li>" + nombreInvitado + crearBotonAceptado(invitado.Id_text) + crearBotonRechazar(invitado.Id_text) + "</li>"
+	}
+	return "<li>" + nombreInvitado + crearBotonAceptar(invitado.Id_text) + crearBotonRechazado(invitado.Id_text) + "</li>"
+}
+
+func verificarInvitado(gc *gin.Context) {
 	enableCors(gc)
-	var invitado InvitadoId
-
-	if err := gc.BindJSON(&invitado); err != nil {
-		gc.IndentedJSON(http.StatusNotFound, gin.H{"message": fmt.Sprintf("Id del invitado invalido \n %s", err)})
+	invitadoId := gc.Param("id")
+	invitado, err := getInvitadoByIdDB(invitadoId)
+	if err != nil {
+		gc.Status(http.StatusNotFound)
 		return
 	}
 
-	if _, err := db.Exec(fmt.Sprintf("UPDATE Invitados SET asiste = 0 WHERE id_text = '%s'", invitado.Invitado_Id)); err != nil {
-		gc.IndentedJSON(http.StatusNotFound, gin.H{"message": fmt.Sprintf("Hubo un problema realizando la actualización.\n %s \n %s", err, invitado)})
+	filaInvitado := crearFilaInvitado(invitado)
+	gc.Data(http.StatusOK, "text/html; charset=utf-8", []byte(filaInvitado))
+}
+
+func verificarFamilia(gc *gin.Context) {
+
+	enableCors(gc)
+	familiaId := gc.Param("id")
+	familia, err := getInvitadosByFamiliaIdDB(familiaId)
+	if err != nil {
+		gc.Status(http.StatusNotFound)
 		return
 	}
 
-	htmlStr := fmt.Sprintf(`<button type="button" id="rechazar" name="invitado_id" value="%s" class="rechazarSeleccionado"
-                    hx-get="/components/rechazar-button-%s" hx-trigger="click from:button#aceptar[value='%s'] queue:last delay:.5s" hx-swap="outerHTML transition:true">
-						<span>Rechazado</span>
-                    </button>`, invitado.Invitado_Id, invitado.Invitado_Id, invitado.Invitado_Id)
+	var filaInvitados string
+	for _, invitado := range familia {
+		filaInvitados = filaInvitados + crearFilaInvitado(invitado)
+	}
 
-	gc.Data(http.StatusOK, "text/html; charset=utf-8", []byte(htmlStr))
-	// gc.Status(http.StatusNoContent)
-
+	gc.Data(http.StatusOK, "text/html; charset=utf-8", []byte(filaInvitados))
 }
 
 func aceptarInvitacion(gc *gin.Context) {
@@ -388,13 +563,27 @@ func aceptarInvitacion(gc *gin.Context) {
 		return
 	}
 
-	htmlStr := fmt.Sprintf(`<button type="button" id="aceptar" name="invitado_id" value="%s" class="aceptarSeleccionado" 
-				hx-get="/components/aceptar-button-%s" hx-trigger="click from:button#rechazar[value='%s'] queue:last delay:.5s" hx-swap="outerHTML transition:true">
-					<span>Aceptado</span>
-				</button>`, invitado.Invitado_Id, invitado.Invitado_Id, invitado.Invitado_Id)
+	htmlStr := crearBotonAceptado(invitado.Invitado_Id) + crearBotonRechazar(invitado.Invitado_Id)
+	gc.Data(http.StatusOK, "text/html; charset=utf-8", []byte(htmlStr))
+}
+
+func rechazarInvitacion(gc *gin.Context) {
+	enableCors(gc)
+	var invitado InvitadoId
+
+	if err := gc.BindJSON(&invitado); err != nil {
+		gc.IndentedJSON(http.StatusNotFound, gin.H{"message": fmt.Sprintf("Id del invitado invalido \n %s", err)})
+		return
+	}
+
+	if _, err := db.Exec(fmt.Sprintf("UPDATE Invitados SET asiste = 0 WHERE id_text = '%s'", invitado.Invitado_Id)); err != nil {
+		gc.IndentedJSON(http.StatusNotFound, gin.H{"message": fmt.Sprintf("Hubo un problema realizando la actualización.\n %s \n %s", err, invitado)})
+		return
+	}
+
+	htmlStr := crearBotonAceptar(invitado.Invitado_Id) + crearBotonRechazado(invitado.Invitado_Id)
 
 	gc.Data(http.StatusOK, "text/html; charset=utf-8", []byte(htmlStr))
-	// gc.Status(http.StatusNoContent)
 }
 
 func agregarCancion(gc *gin.Context) {
@@ -407,30 +596,23 @@ func agregarCancion(gc *gin.Context) {
 	}
 
 	_, errInv := getInvitadoByIdDB(cancionRequest.Invitado_Id)
-	if errInv == nil {
-		if _, err := db.Exec("INSERT INTO Canciones (id_invitado, fecha, nombre_cancion) VALUES(?, current_timestamp(), ?)", cancionRequest.Invitado_Id, cancionRequest.Nombre_Cancion); err != nil {
-			gc.IndentedJSON(http.StatusNotFound, gin.H{"message": fmt.Sprintf("Hubo un problema realizando la inserción de la canción.\n %s \n %s", err, cancionRequest)})
-			return
-		}
-
-		gc.Status(http.StatusNoContent)
-
-		return
-	}
-
 	_, errFam := getFamiliaByIdDB(cancionRequest.Invitado_Id)
-	if errFam != nil {
-		gc.IndentedJSON(http.StatusNotFound, gin.H{"message": fmt.Sprintf("No se encuentra un registro que concuerde con este id %s", cancionRequest.Invitado_Id)})
+
+	if errInv != nil && errFam != nil {
+		htmlStr := "<input type='text' id='cancion-input' name='nombre_cancion' value='' placeholder='ID Invitado Incorrecto' required>"
+		gc.Data(http.StatusNotFound, "text/html; charset=utf-8", []byte(htmlStr))
 		return
 	}
 
 	if _, err := db.Exec("INSERT INTO Canciones (id_invitado, fecha, nombre_cancion) VALUES(?, current_timestamp(), ?)", cancionRequest.Invitado_Id, cancionRequest.Nombre_Cancion); err != nil {
-		gc.IndentedJSON(http.StatusNotFound, gin.H{"message": fmt.Sprintf("Hubo un problema realizando la inserción de la canción.\n %s \n %s", err, cancionRequest)})
+		htmlStr := "<input type='text' id='cancion-input' name='nombre_cancion' value='' placeholder='Error. Intentalo de nuevo' required>"
+		gc.Data(http.StatusNotFound, "text/html; charset=utf-8", []byte(htmlStr))
 		return
 	}
 
-	gc.Status(http.StatusNoContent)
+	htmlStr := "<input type='text' id='cancion-input' name='nombre_cancion' value='' placeholder='¡Gracias! Agrega otra ...' required>"
 
+	gc.Data(http.StatusOK, "text/html; charset=utf-8", []byte(htmlStr))
 }
 
 func agregarMensaje(gc *gin.Context) {
@@ -443,81 +625,53 @@ func agregarMensaje(gc *gin.Context) {
 	}
 
 	_, errInv := getInvitadoByIdDB(mensajeRequest.Invitado_Id)
-	if errInv == nil {
-		if _, err := db.Exec("INSERT INTO Mensajes (id_invitado, fecha, contenido) VALUES(?, current_timestamp(), ?)", mensajeRequest.Invitado_Id, mensajeRequest.Mansaje); err != nil {
-			gc.IndentedJSON(http.StatusNotFound, gin.H{"message": fmt.Sprintf("Hubo un problema realizando la inserción del mensaje.\n %s \n %s", err, mensajeRequest)})
-			return
-		}
-
-		gc.Status(http.StatusNoContent)
-
-		return
-	}
-
 	_, errFam := getFamiliaByIdDB(mensajeRequest.Invitado_Id)
-	if errFam != nil {
-		gc.IndentedJSON(http.StatusNotFound, gin.H{"message": fmt.Sprintf("No se encuentra un registro que concuerde con este id %s", mensajeRequest.Invitado_Id)})
+
+	if errInv != nil && errFam != nil {
+		htmlStr := "<textarea name='mensaje' id='mensaje-textarea' placeholder='Error, intentalo de nuevo' rows='30' required></textarea>"
+		gc.Data(http.StatusNotFound, "text/html; charset=utf-8", []byte(htmlStr))
 		return
 	}
 
 	if _, err := db.Exec("INSERT INTO Mensajes (id_invitado, fecha, contenido) VALUES(?, current_timestamp(), ?)", mensajeRequest.Invitado_Id, mensajeRequest.Mansaje); err != nil {
-		gc.IndentedJSON(http.StatusNotFound, gin.H{"message": fmt.Sprintf("Hubo un problema realizando la inserción del mensaje.\n %s \n %s", err, mensajeRequest)})
+		htmlStr := "<textarea name='mensaje' id='mensaje-textarea' placeholder='Error, intentalo de nuevo' rows='30' required></textarea>"
+		gc.Data(http.StatusNotFound, "text/html; charset=utf-8", []byte(htmlStr))
 		return
 	}
 
-	gc.Status(http.StatusNoContent)
+	htmlStr := "<textarea name='mensaje' id='mensaje-textarea' placeholder='¡Gracias por tu mensaje! Puedes ingresar otro' rows='30' required></textarea>"
 
+	gc.Data(http.StatusOK, "text/html; charset=utf-8", []byte(htmlStr))
 }
 
-func prueba1(gc *gin.Context) {
+func getPresentacionFamiliaById(gc *gin.Context) {
 	enableCors(gc)
-	var inputRequest Prueba
+	id := gc.Param("id")
 
-	if err := gc.BindJSON(&inputRequest); err != nil {
+	familia, err := getFamiliaByIdDB(id)
+
+	if err != nil {
 		gc.IndentedJSON(http.StatusNotFound, gin.H{"message": fmt.Sprintf("La petición es incorrecta \n %s", err)})
-		return
 	}
 
-	fmt.Printf("El id de invitado es  %s", inputRequest.Input)
+	htmlStr := fmt.Sprintf(`<h1 class='nombre-presentacion nombre-principal'>%s</h1> 
+							<h1 class='nombre-presentacion nombre-secundario'>%s</h1>`, familia.Nombre, familia.Nombre_invitacion)
 
-	strBoton := fmt.Sprintf("<button name='input' value='%s' hx-post='http://localhost:8080/prueba2' hx-ext='json-enc' hx-swap='outerHTML'  class='aceptar'>a probar 2</button>", inputRequest.Input)
-
-	gc.Data(http.StatusOK, "text/html; charset=utf-8", []byte(strBoton))
+	gc.Data(http.StatusOK, "text/html; charset=utf-8", []byte(htmlStr))
 }
 
-func prueba2(gc *gin.Context) {
+func getPresentacionInvitadoById(gc *gin.Context) {
 	enableCors(gc)
-	var inputRequest Prueba
+	id := gc.Param("id")
 
-	if err := gc.BindJSON(&inputRequest); err != nil {
+	invitado, err := getInvitadoByIdDB(id)
+
+	if err != nil {
 		gc.IndentedJSON(http.StatusNotFound, gin.H{"message": fmt.Sprintf("La petición es incorrecta \n %s", err)})
-		return
 	}
 
-	fmt.Printf("El id de invitado es  %s", inputRequest.Input)
+	htmlStr := fmt.Sprintf(`<h1 class='nombre-presentacion nombre-principal'>%s</h1> 
+							<h1 class='nombre-presentacion nombre-secundario'>%s</h1>`, invitado.Nombre, invitado.Nombre_invitacion)
 
-	strBoton := fmt.Sprintf("<button name='input' value='%s' hx-post='http://localhost:8080/prueba1' hx-ext='json-enc' hx-swap='outerHTML' class='aceptarSeleccionado'>a probar 1</button>", inputRequest.Input)
-
-	gc.Data(http.StatusOK, "text/html; charset=utf-8", []byte(strBoton))
-}
-
-func pruebaHXTrigger(gc *gin.Context) {
-	enableCors(gc)
-	var inputRequest Prueba
-
-	if err := gc.BindJSON(&inputRequest); err != nil {
-		gc.IndentedJSON(http.StatusNotFound, gin.H{"message": fmt.Sprintf("La petición es incorrecta \n %s", err)})
-		return
-	}
-
-	// gc.Header("hX-TriGger", "pruebaEvent")
-	gc.Writer.Header()["HX-Trigger"] = []string{"{\"pruebaEvent\": \"\"}"}
-	// gc.Writer.Header()["HX-Trigger"] = []string{struct{ eventoPrueba string }{eventoPrueba: ""}}
-
-	// header := gin.H{"HX-Trigger2": "pruebaEvent"}
-
-	// gc.ShouldBindHeader(header)
-	gc.Status(http.StatusOK)
-	fmt.Printf("estos son los headers %+v", gc.Writer.Header())
-	// gc.IndentedJSON(http.StatusNoContent, gin.H{"HX-Trigger": "pruebaEvent"})
+	gc.Data(http.StatusOK, "text/html; charset=utf-8", []byte(htmlStr))
 }
