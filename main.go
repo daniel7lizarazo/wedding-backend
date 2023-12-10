@@ -64,6 +64,14 @@ type Prueba struct {
 	Input string `json:"input"`
 }
 
+type InvitadoFamilia struct {
+	Id_text         string
+	Nombre          string
+	Id_text_familia sql.NullString
+	Nombre_familia  sql.NullString
+	Asiste          sql.NullBool
+}
+
 func main() {
 	// Capture connection properties.
 	cfg := mysql.Config{
@@ -106,6 +114,9 @@ func main() {
 	router.OPTIONS("/invitados/presentacion/:id", enableCors)
 	router.GET("/invitados/presentacion/:id", getPresentacionInvitadoById)
 
+	router.OPTIONS("/invitados/tabla-rsvp", enableCors)
+	router.GET("/invitados/tabla-rsvp", getTablaRsvp)
+
 	router.OPTIONS("/verificarInvitado/:id", enableCors)
 	router.GET("/verificarInvitado/:id", verificarInvitado)
 
@@ -127,7 +138,7 @@ func main() {
 
 func enableCors(gc *gin.Context) {
 	gc.Header("Access-Control-Allow-Origin", "*")
-	gc.Header("Access-Control-Allow-Headers", "access-control-allow-origin, access-control-allow-headers, Content-Type, hx-current-url, hx-request")
+	gc.Header("Access-Control-Allow-Headers", "access-control-allow-origin, access-control-allow-headers, Content-Type, hx-current-url, hx-request, hx-target, hx-trigger")
 	gc.Header("Content-Type", "application/json")
 	gc.Status(http.StatusNoContent)
 }
@@ -652,6 +663,7 @@ func getPresentacionFamiliaById(gc *gin.Context) {
 
 	if err != nil {
 		gc.IndentedJSON(http.StatusNotFound, gin.H{"message": fmt.Sprintf("La petición es incorrecta \n %s", err)})
+		return
 	}
 
 	htmlStr := fmt.Sprintf(`<h1 class='nombre-presentacion nombre-principal'>%s</h1> 
@@ -668,10 +680,114 @@ func getPresentacionInvitadoById(gc *gin.Context) {
 
 	if err != nil {
 		gc.IndentedJSON(http.StatusNotFound, gin.H{"message": fmt.Sprintf("La petición es incorrecta \n %s", err)})
+		return
 	}
 
 	htmlStr := fmt.Sprintf(`<h1 class='nombre-presentacion nombre-principal'>%s</h1> 
 							<h1 class='nombre-presentacion nombre-secundario'>%s</h1>`, invitado.Nombre, invitado.Nombre_invitacion)
 
 	gc.Data(http.StatusOK, "text/html; charset=utf-8", []byte(htmlStr))
+}
+
+func getInvitadosFamiliaDB() ([]InvitadoFamilia, error) {
+
+	var invitadosFamilias []InvitadoFamilia
+
+	invResp, err := db.Query("SELECT inv.id_text, inv.nombre, inv.asiste, fam.id_text, fam.nombre FROM Invitados inv LEFT JOIN Familias fam on inv.id_familia = fam.id")
+
+	if err != nil {
+		return nil, fmt.Errorf("getInvitadosFamiliaDB %s", err)
+	}
+
+	defer invResp.Close()
+
+	for invResp.Next() {
+		var invitadoFam InvitadoFamilia
+		if err := invResp.Scan(
+			&invitadoFam.Id_text,
+			&invitadoFam.Nombre,
+			&invitadoFam.Asiste,
+			&invitadoFam.Id_text_familia,
+			&invitadoFam.Nombre_familia); err != nil {
+			return nil, fmt.Errorf("getInvitadosDb %s", err)
+		}
+		invitadosFamilias = append(invitadosFamilias, invitadoFam)
+	}
+
+	return invitadosFamilias, nil
+}
+
+func getTablaRsvp(gc *gin.Context) {
+	enableCors(gc)
+
+	invitados, err := getInvitadosFamiliaDB()
+
+	if err != nil {
+		gc.IndentedJSON(http.StatusNotFound, gin.H{"message": fmt.Sprintf("Ha sucedido un error por favor intentelo de nuevo \n %s", err)})
+		return
+	}
+
+	var htmlStr string
+	invitadosNo := len(invitados)
+	var invitadosSinRespuesta int32
+	var invitadosRechazado int32
+	var invitadosAceptado int32
+
+	for _, inv := range invitados {
+		classStr := getClassAsisteByInv(inv.Asiste)
+		htmlStr = htmlStr + fmt.Sprintf(`	
+			<div class="asistencia">
+				<span class="nombre-asistente">%s</span>
+				<span class="familia-asistente">%s</span>
+				<span class="asiste %s"></span>
+			</div>`,
+			inv.Nombre, inv.Nombre_familia.String, classStr)
+		if !inv.Asiste.Valid {
+			invitadosSinRespuesta += 1
+			continue
+		}
+		if inv.Asiste.Bool {
+			invitadosAceptado += 1
+			continue
+		}
+		invitadosRechazado += 1
+	}
+
+	htmlStr = fmt.Sprintf(`<div class="totales-invitados">
+		<div class="total-data total-invitados">
+			<h1>%v</h1>
+			<h2>INV</h2>
+		</div>
+		<div class="total-data total-sin">
+			<h1>%v</h1>
+			<h2>SIN</h2>
+		</div>
+		<div class="total-data total-rechazadas">
+			<h1>%v</h1>
+			<h2>RCH</h2>
+		</div>
+		<div class="total-data total-aceptadas">
+			<h1>%v</h1>
+			<h2>ACP</h2>
+		</div>
+	</div>
+	<div class="outter-asistencia-container">
+		<div class="asistencia-container" id="asistencia-container"> 
+				%s 
+		</div>
+	</div>`,
+		invitadosNo, invitadosSinRespuesta, invitadosRechazado, invitadosAceptado, htmlStr)
+
+	gc.Data(http.StatusOK, "text/html; charset=utf-8", []byte(htmlStr))
+
+}
+
+func getClassAsisteByInv(asiste sql.NullBool) string {
+	if !asiste.Valid {
+		return "sin-respuesta"
+	}
+	if asiste.Bool {
+		return "si-asiste"
+	}
+	return "no-asiste"
 }
